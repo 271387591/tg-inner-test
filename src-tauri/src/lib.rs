@@ -36,9 +36,9 @@ struct JavaInfo {
     res_path: String,
 }
 const BUNDLE_PATH: &str = "tg-ff-inner";
-const APP_PATH: &str = "app";
+pub const APP_PATH: &str = "app";
 
-const APP_NAME: &str = "tg-ff-inner.bundle";
+pub const  APP_NAME: &str = "tg-ff-inner.bundle";
 
 pub const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -199,7 +199,7 @@ fn get_java_info(app: &tauri::AppHandle) -> anyhow::Result<JavaInfo> {
         let resource_dir=env::current_dir()?;
         let res_path:String=resource_dir.to_str().unwrap().to_string();
         let jre_path = resource_dir.join(BUNDLE_PATH).join("TG-FF-BUNDLE.exe");
-        let app_jar = PathBuf::from(BUNDLE_PATH).join(APP_PATH).join(APP_NAME);
+        let app_jar = resource_dir.join(BUNDLE_PATH).join(APP_PATH).join(APP_NAME);
         return Ok(JavaInfo {
             jre_path: jre_path.to_str().unwrap().to_string(),
             jar_path: app_jar.to_str().unwrap().to_string(),
@@ -207,60 +207,30 @@ fn get_java_info(app: &tauri::AppHandle) -> anyhow::Result<JavaInfo> {
             data_path: res_path.clone(),
         })
     }
-
-
-
-    #[cfg(target_os = "macos")]
-    let resource_dir = app.path().resource_dir()?;
-    #[cfg(target_os = "windows")]
-    let resource_dir=env::current_dir()?;
-
-    let mut data_path=String::new();
     #[cfg(target_os = "macos")]{
+        let resource_dir=env::current_dir()?;
+        let res_path:String=resource_dir.to_str().unwrap().to_string();
+        let jre_path = resource_dir.join(BUNDLE_PATH).join("Contents").join("MacOS").join("TG-FF-BUNDLE");
+        let app_jar = resource_dir.join(BUNDLE_PATH).join("Contents").join(APP_PATH).join(APP_NAME);
+
         let mac_data_path=app.path().data_dir()?;
         let data_dir=mac_data_path.join("TG-FF");
         if !data_dir.exists() {
             std::fs::create_dir_all(&data_dir)?;
         }
-        data_path.push_str(data_dir.to_str().unwrap());
-    }
-    #[cfg(target_os = "windows")]
-    data_path.push_str(resource_dir.to_str().unwrap());
+        let data_app_dir=data_dir.join(APP_PATH);
+        if !data_app_dir.exists() {
+            std::fs::create_dir_all(&data_app_dir)?;
+        }
 
-    #[cfg(debug_assertions)]{
-        data_path.clear();
-        data_path.push_str(resource_dir.to_str().unwrap());
+        return Ok(JavaInfo {
+            jre_path: jre_path.to_str().unwrap().to_string(),
+            jar_path: app_jar.to_str().unwrap().to_string(),
+            res_path: res_path.clone(),
+            data_path: data_dir.to_str().unwrap().to_string(),
+        })
     }
-
-
-    println!("resource_dir is : {}", resource_dir.display());
-    let mut app_jar = PathBuf::from(&data_path).join(APP_PATH).join(APP_NAME);
-    if !app_jar.exists() {
-        app_jar=resource_dir.join(APP_PATH).join(APP_NAME);
-    }
-    if !app_jar.exists() {
-        return Err(anyhow!("bundle_notfound"));
-    }
-    #[cfg(all(target_os = "macos"))]
-    let jre_path = resource_dir
-        .join("runtime")
-        .join("bin")
-        .join("java");
-    #[cfg(target_os = "windows")]
-    let jre_path = resource_dir
-        .join(BUNDLE_PATH)
-        .join("TG-FF-BUNDLE.exe");
-
-    Ok(JavaInfo {
-        jre_path: jre_path.to_str().unwrap().to_string(),
-        jar_path: app_jar.to_str().unwrap().to_string(),
-        res_path: resource_dir.to_str().unwrap().to_string(),
-        data_path: data_path.clone(),
-    })
 }
-
-struct AppTray(std::sync::Mutex<Option<tauri::tray::TrayIcon>>);
-
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -270,54 +240,51 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_shell::init())
-        // .manage(AppTray(std::sync::Mutex::new(None))) // 全局状态管理托盘实例
         .setup(|app| {
-            // let tray_state = app.state::<AppTray>();
-            // let mut tray_icon_lock = tray_state.0.lock().unwrap();
-            // if tray_icon_lock.is_none(){
-            //     let quit_m = MenuItem::with_id(app, "show", "主界面", true, None::<&str>)?;
-            //     let quit_i = MenuItem::with_id(app, "quit", "退出程序", true, None::<&str>)?;
-            //     let menu = Menu::with_items(app, &[&quit_m, &quit_i])?;
-            //     let tray_icon = tauri::tray::TrayIconBuilder::new()
-            //         .on_tray_icon_event(|tray, event| match event {
-            //             TrayIconEvent::Click {
-            //                 button: MouseButton::Left,
-            //                 button_state: MouseButtonState::Up,
-            //                 ..
-            //             } => {
-            //                 // println!("left click pressed and released");
-            //                 // in this example, let's show and focus the main window when the tray is clicked
-            //                 let app = tray.app_handle();
-            //                 if let Some(window) = app.get_webview_window("main") {
-            //                     let _ = window.show();
-            //                     let _ = window.set_focus();
-            //                 }
-            //             }
-            //             _ => {
-            //                 // println!("unhandled event {event:?}");
-            //             }
-            //         })
-            //         .menu(&menu)
-            //         .show_menu_on_left_click(true)
-            //         .on_menu_event(|app, event| match event.id.as_ref() {
-            //             "quit" => {
-            //                 app.emit("js_exit", "1").unwrap();
-            //             }
-            //             "show" => {
-            //                 if let Some(window) = app.get_webview_window("main") {
-            //                     let _ = window.show();
-            //                     let _ = window.set_focus();
-            //                 }
-            //             }
-            //             _ => {
-            //                 println!("menu item {:?} not handled", event.id);
-            //             }
-            //         })
-            //         .icon(app.default_window_icon().unwrap().clone())
-            //         .build(app)?;
-            //     // 将 tray_icon 存入全局状态（防止重复创建）
-            //     *tray_icon_lock = Some(tray_icon);
-            // }
+            #[cfg(target_os = "macos")]{
+                let quit_m = MenuItem::with_id(app, "show", "主界面", true, None::<&str>)?;
+                let quit_i = MenuItem::with_id(app, "quit", "退出程序", true, None::<&str>)?;
+                let menu = Menu::with_items(app, &[&quit_m, &quit_i])?;
+                let tray_icon = tauri::tray::TrayIconBuilder::new()
+                    .on_tray_icon_event(|tray, event| match event {
+                        TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } => {
+                            // println!("left click pressed and released");
+                            // in this example, let's show and focus the main window when the tray is clicked
+                            let app = tray.app_handle();
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        _ => {
+                            // println!("unhandled event {event:?}");
+                        }
+                    })
+                    .menu(&menu)
+                    .show_menu_on_left_click(true)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "quit" => {
+                            app.emit("js_exit", "1").unwrap();
+                        }
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        _ => {
+                            println!("menu item {:?} not handled", event.id);
+                        }
+                    })
+                    .icon(app.default_window_icon().unwrap().clone())
+                    .build(app)?;
+            }
+
+
 
 
             // #[cfg(debug_assertions)] // 仅在调试(debug)版本中包含此代码

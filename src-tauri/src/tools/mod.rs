@@ -38,16 +38,19 @@ pub async fn get_health(start_port: u16) -> bool {
         let client = Client::new();
         match client.get(url.as_str()).send().await {
             Ok(response) => {
+                #[cfg!(debug_assertions)]
                 println!("response status: {}", response.status());
                 response.status().is_success()
             },
             Err(e) => {
+                #[cfg!(debug_assertions)]
                 println!("Failed to connect: {:?}", e);
                 false
             }
         }
     });
     handle.await.unwrap_or_else(|e| {
+        #[cfg!(debug_assertions)]
         println!("Task failed: {:?}", e);
         false
     })
