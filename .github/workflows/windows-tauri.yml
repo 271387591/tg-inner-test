@@ -5,34 +5,34 @@ on:
     branches:
       - master  # 仅当推送到 main 分支时触发
 
+
 jobs:
-  test-tauri:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: "windows-latest"
-            args: "--target x86_64-pc-windows-msvc --config src-tauri/tauri.conf.windows_x64.json"
-
-    runs-on: ${{ matrix.platform }}
+  build:
+    runs-on: windows-latest
     if: contains(github.event.head_commit.message, 'windows')
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: setup node
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: '20'
 
-      - name: install Rust stable
+      - name: Setup Yarn
+        run: npm install -g yarn
+
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || '' }}
+          targets: x86_64-pc-windows-msvc
 
-      - name: install frontend dependencies
-        run: yarn install
+      - name: Install Tauri Dependencies
+        run: |
+          yarn install
+          rustup target add x86_64-pc-windows-msvc
 
-      # ✅ 新增：解压并移动 runtime-x86_64-apple-darwin 和 tg-ff-inner.bundle
       - name: Prepare runtime-x86_64-apple-darwin and bundles
         shell: pwsh
         run: |
@@ -48,15 +48,71 @@ jobs:
           # 把所有解压内容复制进去
           Copy-Item -Path "runtime-temp/*" -Destination "src-tauri/tg-ff-inner" -Recurse
 
-      # ✅ Tauri 打包
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: ${{ matrix.args }}
+      - name: Build Tauri App with NSIS
+        run: yarn run tauri:windows_x64
 
       - name: Upload NSIS Installer
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe
+
+
+
+
+
+#jobs:
+#  test-tauri:
+#    strategy:
+#      fail-fast: false
+#      matrix:
+#        include:
+#          - platform: "windows-latest"
+#            args: "--target x86_64-pc-windows-msvc --config src-tauri/tauri.conf.windows_x64.json"
+#
+#    runs-on: ${{ matrix.platform }}
+#    if: contains(github.event.head_commit.message, 'windows')
+#    steps:
+#      - uses: actions/checkout@v4
+#
+#      - name: setup node
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: lts/*
+#
+#      - name: install Rust stable
+#        uses: dtolnay/rust-toolchain@stable
+#        with:
+#          targets: ${{ matrix.platform == 'windows-latest' && 'x86_64-pc-windows-msvc' || '' }}
+#
+#      - name: install frontend dependencies
+#        run: yarn install
+#
+#      # ✅ 新增：解压并移动 runtime-x86_64-apple-darwin 和 tg-ff-inner.bundle
+#      - name: Prepare runtime-x86_64-apple-darwin and bundles
+#        shell: pwsh
+#        run: |
+#          # 解压 tg-ff-inner-windows-x86_64.zip 到临时目录
+#          Expand-Archive -Path "tg-ff-inner-windows-x86_64.zip" -DestinationPath "runtime-temp"
+#
+#          # 创建 runtime 目标目录
+#          if (Test-Path "src-tauri/tg-ff-inner") {
+#            Remove-Item -Path "src-tauri/tg-ff-inner" -Recurse -Force
+#          }
+#          New-Item -ItemType Directory -Path "src-tauri/tg-ff-inner"
+#
+#          # 把所有解压内容复制进去
+#          Copy-Item -Path "runtime-temp/*" -Destination "src-tauri/tg-ff-inner" -Recurse
+#
+#      # ✅ Tauri 打包
+#      - uses: tauri-apps/tauri-action@v0
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        with:
+#          args: ${{ matrix.args }}
+#
+#      - name: Upload NSIS Installer
+#        uses: actions/upload-artifact@v4
+#        with:
+#          name: windows-installer
+#          path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/*.exe

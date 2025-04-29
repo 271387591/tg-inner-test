@@ -17,15 +17,22 @@ const setupListeners = async () => {
   await listen("js_exit", do_exit);
 };
 
-async function checkReady(targetUrl) {
+async function checkReady(targetUrl,check_url,os_detail) {
   for(let i=0; i<30; i++) {
-
     try {
-      const res=await invoke("check_status")
-      console.log("checkReadycheckReadycheckReadycheckReadycheckReadycheckReady",res);
-      if (res){
-        location.replace(targetUrl);
-        return;
+      if (os_detail.includes("windows")) {
+        const res = await fetch(check_url);
+        if(res.ok && (await res.text()).includes('ok')) {
+          location.replace(targetUrl);
+          return;
+        }
+      }else {
+        const res=await invoke("check_status")
+        console.log("checkReadycheckReadycheckReadycheckReadycheckReadycheckReady",res);
+        if (res){
+          location.replace(targetUrl);
+          return;
+        }
       }
     } catch (e) {
       console.log("checkReadychec",e);
@@ -45,8 +52,9 @@ onMounted(async () => {
     core_current_version.value=result.core_current_version
     start_port=result.start_port
     let url=`http://127.0.0.1:${start_port}/?fr=ta&os=${os_detail.value}&cv=${core_current_version.value}`;
+    let check_url=`http://127.0.0.1:${start_port}/health`;
     await invoke("tg_start")
-    await checkReady(url);
+    await checkReady(url,check_url,os_detail.value);
   }catch (e) {
     error_status.value=true
     error.value="Program initialization failed, please exit and restart!"
