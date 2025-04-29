@@ -39,7 +39,6 @@ pub fn tg_start(jar_path:&str, res_path:&str, data_path:&str, java_cmd:&str, sta
         }
     }
     let child = Command::new(java_cmd)
-        .current_dir(res_path)
         .env("BUNDLE_TEMP", &log_dir)
         .env("app.home", tools::hex_encode(data_path))
         .env("app.secret", app_secret)

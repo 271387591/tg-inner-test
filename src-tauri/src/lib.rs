@@ -208,10 +208,9 @@ fn get_java_info(app: &tauri::AppHandle) -> anyhow::Result<JavaInfo> {
         })
     }
     #[cfg(target_os = "macos")]{
-        let resource_dir=env::current_dir()?;
-        let res_path:String=resource_dir.to_str().unwrap().to_string();
-        let jre_path = resource_dir.join(BUNDLE_PATH).join("Contents").join("MacOS").join("TG-FF-BUNDLE");
-        let app_jar = resource_dir.join(BUNDLE_PATH).join("Contents").join(APP_PATH).join(APP_NAME);
+        let resource_dir=app.path().resource_dir()?;
+        let jre_path = resource_dir.parent().unwrap().join(BUNDLE_PATH).join("Contents").join("MacOS").join("TG-FF-BUNDLE");
+        let app_jar = resource_dir.parent().unwrap().join(BUNDLE_PATH).join("Contents").join(APP_PATH).join(APP_NAME);
 
         let mac_data_path=app.path().data_dir()?;
         let data_dir=mac_data_path.join("TG-FF");
@@ -222,6 +221,7 @@ fn get_java_info(app: &tauri::AppHandle) -> anyhow::Result<JavaInfo> {
         if !data_app_dir.exists() {
             std::fs::create_dir_all(&data_app_dir)?;
         }
+        let res_path:String=app.path().resource_dir()?.to_str().unwrap().to_string();
 
         return Ok(JavaInfo {
             jre_path: jre_path.to_str().unwrap().to_string(),
